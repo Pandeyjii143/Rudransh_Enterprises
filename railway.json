@@ -1,7 +1,6 @@
 {
   "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "npm ci --only=production"
+    "builder": "NIXPACKS"
   },
   "deploy": {
     "startCommand": "npm start",
