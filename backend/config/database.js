@@ -5,8 +5,16 @@ const fs = require('fs');
 // If no DATABASE_URL is configured, use local SQLite data (development).
 const { DATABASE_URL } = process.env;
 
-if (!fs.existsSync(path.join(__dirname, '..', 'app.db'))) {
-  fs.writeFileSync(path.join(__dirname, '..', 'app.db'), '');
+// Only create database file in development, not during Railway build
+if (!DATABASE_URL && process.env.NODE_ENV !== 'production') {
+  const dbPath = path.join(__dirname, '..', 'app.db');
+  if (!fs.existsSync(dbPath)) {
+    try {
+      fs.writeFileSync(dbPath, '');
+    } catch (error) {
+      console.warn('Could not create database file:', error.message);
+    }
+  }
 }
 
 const dbConnector = require('../../database/db');
