@@ -227,53 +227,53 @@ async function initializeDatabaseSchema() {
   };
 
   await execute(`CREATE TABLE IF NOT EXISTS roles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
     description TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
 
   await execute(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(200) UNIQUE NOT NULL,
     hashed_password TEXT,
     role_id INTEGER NOT NULL DEFAULT 2,
-    phone TEXT,
+    phone VARCHAR(20),
     address TEXT,
-    google_id TEXT UNIQUE,
+    google_id VARCHAR(255) UNIQUE,
     profile_picture TEXT,
-    is_active INTEGER DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (role_id) REFERENCES roles(id)
   )`);
 
   await execute(`CREATE TABLE IF NOT EXISTS sections (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL,
     description TEXT,
     image TEXT,
     display_order INTEGER DEFAULT 0,
-    is_active INTEGER DEFAULT 1,
+    is_active BOOLEAN DEFAULT TRUE,
     created_by INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (created_by) REFERENCES users(id)
   )`);
 
   await execute(`CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    price REAL NOT NULL,
-    category TEXT NOT NULL,
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    price NUMERIC(10,2) NOT NULL,
+    category VARCHAR(100) NOT NULL,
     image TEXT,
-    channel TEXT,
+    channel VARCHAR(50),
     stock INTEGER DEFAULT 0,
     description TEXT,
-    brand TEXT,
+    brand VARCHAR(100),
     specifications TEXT,
-    is_featured INTEGER DEFAULT 0,
-    is_active INTEGER DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    is_featured BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
 
   // Migrate section_id to category if needed
@@ -284,38 +284,38 @@ async function initializeDatabaseSchema() {
   }
 
   await execute(`CREATE TABLE IF NOT EXISTS orders (
-    id TEXT PRIMARY KEY,
+    id VARCHAR(50) PRIMARY KEY,
     user_id INTEGER NOT NULL,
-    total_amount REAL NOT NULL,
-    status TEXT DEFAULT 'pending',
-    payment_status TEXT DEFAULT 'pending',
+    total_amount NUMERIC(12,2) NOT NULL,
+    status VARCHAR(30) DEFAULT 'pending',
+    payment_status VARCHAR(30) DEFAULT 'pending',
     shipping_address TEXT,
-    phone TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    phone VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
   )`);
 
   await execute(`CREATE TABLE IF NOT EXISTS order_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id TEXT NOT NULL,
+    id SERIAL PRIMARY KEY,
+    order_id VARCHAR(50) NOT NULL,
     product_id INTEGER NOT NULL,
     quantity INTEGER NOT NULL,
-    price REAL NOT NULL,
+    price NUMERIC(10,2) NOT NULL,
     FOREIGN KEY (order_id) REFERENCES orders(id),
     FOREIGN KEY (product_id) REFERENCES products(id)
   )`);
 
   await execute(`CREATE TABLE IF NOT EXISTS payments (
-    id TEXT PRIMARY KEY,
-    order_id TEXT NOT NULL,
-    payment_provider_id TEXT,
-    payment_method TEXT,
-    status TEXT DEFAULT 'pending',
-    amount REAL NOT NULL,
-    currency TEXT DEFAULT 'INR',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    id VARCHAR(100) PRIMARY KEY,
+    order_id VARCHAR(50) NOT NULL,
+    payment_provider_id VARCHAR(100),
+    payment_method VARCHAR(50),
+    status VARCHAR(30) DEFAULT 'pending',
+    amount NUMERIC(12,2) NOT NULL,
+    currency VARCHAR(3) DEFAULT 'INR',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(id)
   )`);
 
@@ -354,21 +354,23 @@ async function initializeDatabaseSchema() {
 
   const rolesRow = await dbAsync.get(`SELECT COUNT(*) as count FROM roles`);
   if (!rolesRow || rolesRow.count === 0) {
-    await dbAsync.run(`INSERT INTO roles (name, description) VALUES (?, ?), (?, ?)` , [
+    await dbAsync.run(`INSERT INTO roles (name, description) VALUES ($1, $2)`, [
       "admin",
-      "Administrator with full access",
+      "Administrator with full access"
+    ]);
+    await dbAsync.run(`INSERT INTO roles (name, description) VALUES ($1, $2)`, [
       "client",
-      "Standard client user",
+      "Standard client user"
     ]);
   }
 
-  const adminRole = await dbAsync.get(`SELECT id FROM roles WHERE name = ?`, ["admin"]);
+  const adminRole = await dbAsync.get(`SELECT id FROM roles WHERE name = $1`, ["admin"]);
   const adminEmail = "resecurity.siwan@gmail.com";
   const legacyAdminEmail = "SURYA@87098";
   const adminPassword = "Surya@87098";
 
   const existingAdmin = await dbAsync.get(
-    `SELECT id, email FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(email) = LOWER(?)`,
+    `SELECT id, email FROM users WHERE LOWER(email) = LOWER($1) OR LOWER(email) = LOWER($2)`,
     [adminEmail, legacyAdminEmail],
   );
 
@@ -376,7 +378,7 @@ async function initializeDatabaseSchema() {
     const hashedAdminPassword = await bcrypt.hash(adminPassword, 10);
     await dbAsync.run(
       `INSERT INTO users (name, email, hashed_password, role_id, phone, address, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
         "SURYAMOHAN",
         adminEmail,
@@ -384,13 +386,13 @@ async function initializeDatabaseSchema() {
         adminRole.id,
         null,
         null,
-        1,
+        true,
       ],
     );
     console.log("Admin user seeded:", adminEmail);
   } else if (existingAdmin.email.toLowerCase() === legacyAdminEmail.toLowerCase()) {
     await dbAsync.run(
-      `UPDATE users SET email = ? WHERE id = ?`,
+      `UPDATE users SET email = $1 WHERE id = $2`,
       [adminEmail, existingAdmin.id],
     );
     console.log("Updated legacy admin email to:", adminEmail);
@@ -398,26 +400,20 @@ async function initializeDatabaseSchema() {
 
   const sectionsRow = await dbAsync.get(`SELECT COUNT(*) as count FROM sections`);
   if (!sectionsRow || sectionsRow.count === 0) {
-    await dbAsync.run(
-      `INSERT INTO sections (name, description, display_order) VALUES
-        (?, ?, 1),
-        (?, ?, 2),
-        (?, ?, 3),
-        (?, ?, 4),
-        (?, ?, 5)`,
-      [
-        "Cameras",
-        "Security cameras and surveillance equipment",
-        "Storage",
-        "High-capacity storage devices",
-        "Laptops",
-        "Portable workstations and notebooks",
-        "Monitors",
-        "Displays for surveillance and workstations",
-        "Accessories",
-        "Installation accessories and cables",
-      ],
-    );
+    const sections = [
+      ["Cameras", "Security cameras and surveillance equipment", 1],
+      ["Storage", "High-capacity storage devices", 2],
+      ["Laptops", "Portable workstations and notebooks", 3],
+      ["Monitors", "Displays for surveillance and workstations", 4],
+      ["Accessories", "Installation accessories and cables", 5]
+    ];
+
+    for (const [name, description, order] of sections) {
+      await dbAsync.run(
+        `INSERT INTO sections (name, description, display_order) VALUES ($1, $2, $3)`,
+        [name, description, order]
+      );
+    }
   }
 }
 
@@ -425,9 +421,24 @@ async function initializeDatabaseSchema() {
 // API ROUTES
 // ============================================
 
-// Health check
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+// Health check with database status
+app.get("/health", async (req, res) => {
+  try {
+    // Test database connection
+    await dbAsync.get(`SELECT 1`);
+    res.json({
+      status: "ok",
+      database: "connected",
+      timestamp: new Date().toISOString()
+    });
+  } catch (dbError) {
+    res.status(503).json({
+      status: "degraded",
+      database: "disconnected",
+      error: dbError.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Auth routes (NO global rate limiting - applied per-endpoint in routes file)
@@ -498,18 +509,32 @@ app.use(errorHandler);
 // SERVER STARTUP
 // ============================================
 
-(async () => {
+async function startServer() {
   try {
-    await initializeDatabaseSchema();
+    console.log("Starting server initialization...");
+
+    // Try to initialize database schema (don't crash if it fails)
+    try {
+      await initializeDatabaseSchema();
+      console.log("Database schema initialized successfully");
+    } catch (dbError) {
+      console.warn("Database initialization failed, but continuing:", dbError.message);
+      console.warn("Server will start in degraded mode. Database operations may fail until DB is available.");
+    }
+
+    // Start the server regardless of database status
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+      console.log(`Health check available at: http://localhost:${PORT}/health`);
     });
   } catch (startupError) {
-    console.error("Failed to initialize database schema:", startupError);
+    console.error("Critical server startup error:", startupError);
     process.exit(1);
   }
-})();
+}
+
+startServer();
 
 // ============================================
 // GRACEFUL SHUTDOWN
