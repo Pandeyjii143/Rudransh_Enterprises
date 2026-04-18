@@ -2,10 +2,10 @@
   "name": "rudransh-backend",
   "version": "1.0.0",
   "description": "Backend API for Rudransh Enterprises",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node server-new.js",
-    "dev": "nodemon server-new.js",
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "build": "echo 'No build step required for backend'",
     "migrate": "node ../database/migrations/runMigrations.js",
     "seed": "node ../database/migrations/runSeed.js"
