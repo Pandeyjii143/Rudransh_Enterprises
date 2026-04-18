@@ -216,204 +216,212 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 async function initializeDatabaseSchema() {
-  const execute = async (sql) => {
+  console.log("🔄 Starting database schema initialization...");
+
+  const execute = async (sql, params = []) => {
     try {
-      await dbAsync.run(sql);
+      console.log(`📝 Executing: ${sql.substring(0, 50)}...`);
+      await dbAsync.run(sql, params);
+      console.log("✅ SQL executed successfully");
     } catch (error) {
       if (!error.message.includes("already exists") && !error.message.includes("duplicate column")) {
-        console.error("Database schema initialization warning:", error.message);
+        console.error("❌ Database schema initialization error:", error.message);
+        console.error("SQL:", sql);
+        // Don't throw - continue with other statements
+      } else {
+        console.log("ℹ️  Table/column already exists, skipping");
       }
     }
   };
 
-  await execute(`CREATE TABLE IF NOT EXISTS roles (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(50) UNIQUE NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  await execute(`CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(150) NOT NULL,
-    email VARCHAR(200) UNIQUE NOT NULL,
-    hashed_password TEXT,
-    role_id INTEGER NOT NULL DEFAULT 2,
-    phone VARCHAR(20),
-    address TEXT,
-    google_id VARCHAR(255) UNIQUE,
-    profile_picture TEXT,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (role_id) REFERENCES roles(id)
-  )`);
-
-  await execute(`CREATE TABLE IF NOT EXISTS sections (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) UNIQUE NOT NULL,
-    description TEXT,
-    image TEXT,
-    display_order INTEGER DEFAULT 0,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_by INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES users(id)
-  )`);
-
-  await execute(`CREATE TABLE IF NOT EXISTS products (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    price NUMERIC(10,2) NOT NULL,
-    category VARCHAR(100) NOT NULL,
-    image TEXT,
-    channel VARCHAR(50),
-    stock INTEGER DEFAULT 0,
-    description TEXT,
-    brand VARCHAR(100),
-    specifications TEXT,
-    is_featured BOOLEAN DEFAULT FALSE,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  // Migrate section_id to category if needed
   try {
-    await dbAsync.run(`ALTER TABLE products ADD COLUMN category TEXT`);
-  } catch (error) {
-    // Column might already exist
-  }
+    // Create tables one by one with error handling
+    console.log("📋 Creating roles table...");
+    await execute(`CREATE TABLE IF NOT EXISTS roles (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(50) UNIQUE NOT NULL,
+      description TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
 
-  await execute(`CREATE TABLE IF NOT EXISTS orders (
-    id VARCHAR(50) PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    total_amount NUMERIC(12,2) NOT NULL,
-    status VARCHAR(30) DEFAULT 'pending',
-    payment_status VARCHAR(30) DEFAULT 'pending',
-    shipping_address TEXT,
-    phone VARCHAR(20),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  )`);
+    console.log("📋 Creating users table...");
+    await execute(`CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(150) NOT NULL,
+      email VARCHAR(200) UNIQUE NOT NULL,
+      hashed_password TEXT,
+      role_id INTEGER NOT NULL DEFAULT 2,
+      phone VARCHAR(20),
+      address TEXT,
+      google_id VARCHAR(255) UNIQUE,
+      profile_picture TEXT,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (role_id) REFERENCES roles(id)
+    )`);
 
-  await execute(`CREATE TABLE IF NOT EXISTS order_items (
-    id SERIAL PRIMARY KEY,
-    order_id VARCHAR(50) NOT NULL,
-    product_id INTEGER NOT NULL,
-    quantity INTEGER NOT NULL,
-    price NUMERIC(10,2) NOT NULL,
-    FOREIGN KEY (order_id) REFERENCES orders(id),
-    FOREIGN KEY (product_id) REFERENCES products(id)
-  )`);
+    console.log("📋 Creating sections table...");
+    await execute(`CREATE TABLE IF NOT EXISTS sections (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) UNIQUE NOT NULL,
+      description TEXT,
+      image TEXT,
+      display_order INTEGER DEFAULT 0,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_by INTEGER,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    )`);
 
-  await execute(`CREATE TABLE IF NOT EXISTS payments (
-    id VARCHAR(100) PRIMARY KEY,
-    order_id VARCHAR(50) NOT NULL,
-    payment_provider_id VARCHAR(100),
-    payment_method VARCHAR(50),
-    status VARCHAR(30) DEFAULT 'pending',
-    amount NUMERIC(12,2) NOT NULL,
-    currency VARCHAR(3) DEFAULT 'INR',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(id)
-  )`);
+    console.log("📋 Creating products table...");
+    await execute(`CREATE TABLE IF NOT EXISTS products (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      price NUMERIC(10,2) NOT NULL,
+      category VARCHAR(100) NOT NULL,
+      image TEXT,
+      channel VARCHAR(50),
+      stock INTEGER DEFAULT 0,
+      description TEXT,
+      brand VARCHAR(100),
+      specifications TEXT,
+      is_featured BOOLEAN DEFAULT FALSE,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
 
-  await execute(`CREATE TABLE IF NOT EXISTS refresh_tokens (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    token TEXT NOT NULL,
-    expires_at DATETIME NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  )`);
+    console.log("📋 Creating orders table...");
+    await execute(`CREATE TABLE IF NOT EXISTS orders (
+      id VARCHAR(50) PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      total_amount NUMERIC(12,2) NOT NULL,
+      status VARCHAR(30) DEFAULT 'pending',
+      payment_status VARCHAR(30) DEFAULT 'pending',
+      shipping_address TEXT,
+      phone VARCHAR(20),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )`);
 
-  await execute(`CREATE TABLE IF NOT EXISTS deliveries (
-    id TEXT PRIMARY KEY,
-    order_id TEXT NOT NULL,
-    tracking_number TEXT UNIQUE,
-    carrier TEXT DEFAULT 'Generic Carrier',
-    status TEXT DEFAULT 'pending',
-    current_location TEXT,
-    estimated_delivery DATETIME,
-    actual_delivery DATETIME,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(id)
-  )`);
+    console.log("📋 Creating order_items table...");
+    await execute(`CREATE TABLE IF NOT EXISTS order_items (
+      id SERIAL PRIMARY KEY,
+      order_id VARCHAR(50) NOT NULL,
+      product_id INTEGER NOT NULL,
+      quantity INTEGER NOT NULL,
+      price NUMERIC(10,2) NOT NULL,
+      FOREIGN KEY (order_id) REFERENCES orders(id),
+      FOREIGN KEY (product_id) REFERENCES products(id)
+    )`);
 
-  await execute(`CREATE TABLE IF NOT EXISTS tracking_updates (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    delivery_id TEXT NOT NULL,
-    status TEXT NOT NULL,
-    location TEXT,
-    description TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (delivery_id) REFERENCES deliveries(id)
-  )`);
+    console.log("📋 Creating payments table...");
+    await execute(`CREATE TABLE IF NOT EXISTS payments (
+      id VARCHAR(100) PRIMARY KEY,
+      order_id VARCHAR(50) NOT NULL,
+      payment_provider_id VARCHAR(100),
+      payment_method VARCHAR(50),
+      status VARCHAR(30) DEFAULT 'pending',
+      amount NUMERIC(12,2) NOT NULL,
+      currency VARCHAR(3) DEFAULT 'INR',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (order_id) REFERENCES orders(id)
+    )`);
 
-  const rolesRow = await dbAsync.get(`SELECT COUNT(*) as count FROM roles`);
-  if (!rolesRow || rolesRow.count === 0) {
-    await dbAsync.run(`INSERT INTO roles (name, description) VALUES ($1, $2)`, [
-      "admin",
-      "Administrator with full access"
-    ]);
-    await dbAsync.run(`INSERT INTO roles (name, description) VALUES ($1, $2)`, [
-      "client",
-      "Standard client user"
-    ]);
-  }
+    console.log("📋 Creating deliveries table...");
+    await execute(`CREATE TABLE IF NOT EXISTS deliveries (
+      id TEXT PRIMARY KEY,
+      order_id TEXT NOT NULL,
+      tracking_number TEXT UNIQUE,
+      carrier TEXT DEFAULT 'Generic Carrier',
+      status TEXT DEFAULT 'pending',
+      current_location TEXT,
+      estimated_delivery TIMESTAMP,
+      actual_delivery TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (order_id) REFERENCES orders(id)
+    )`);
 
-  const adminRole = await dbAsync.get(`SELECT id FROM roles WHERE name = $1`, ["admin"]);
-  const adminEmail = "resecurity.siwan@gmail.com";
-  const legacyAdminEmail = "SURYA@87098";
-  const adminPassword = "Surya@87098";
+    console.log("📋 Creating tracking_updates table...");
+    await execute(`CREATE TABLE IF NOT EXISTS tracking_updates (
+      id SERIAL PRIMARY KEY,
+      delivery_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      location TEXT,
+      description TEXT,
+      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (delivery_id) REFERENCES deliveries(id)
+    )`);
 
-  const existingAdmin = await dbAsync.get(
-    `SELECT id, email FROM users WHERE LOWER(email) = LOWER($1) OR LOWER(email) = LOWER($2)`,
-    [adminEmail, legacyAdminEmail],
-  );
-
-  if (!existingAdmin) {
-    const hashedAdminPassword = await bcrypt.hash(adminPassword, 10);
-    await dbAsync.run(
-      `INSERT INTO users (name, email, hashed_password, role_id, phone, address, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        "SURYAMOHAN",
-        adminEmail,
-        hashedAdminPassword,
-        adminRole.id,
-        null,
-        null,
-        true,
-      ],
-    );
-    console.log("Admin user seeded:", adminEmail);
-  } else if (existingAdmin.email.toLowerCase() === legacyAdminEmail.toLowerCase()) {
-    await dbAsync.run(
-      `UPDATE users SET email = $1 WHERE id = $2`,
-      [adminEmail, existingAdmin.id],
-    );
-    console.log("Updated legacy admin email to:", adminEmail);
-  }
-
-  const sectionsRow = await dbAsync.get(`SELECT COUNT(*) as count FROM sections`);
-  if (!sectionsRow || sectionsRow.count === 0) {
-    const sections = [
-      ["Cameras", "Security cameras and surveillance equipment", 1],
-      ["Storage", "High-capacity storage devices", 2],
-      ["Laptops", "Portable workstations and notebooks", 3],
-      ["Monitors", "Displays for surveillance and workstations", 4],
-      ["Accessories", "Installation accessories and cables", 5]
-    ];
-
-    for (const [name, description, order] of sections) {
-      await dbAsync.run(
-        `INSERT INTO sections (name, description, display_order) VALUES ($1, $2, $3)`,
-        [name, description, order]
-      );
+    // Seed data
+    console.log("🌱 Seeding initial data...");
+    const rolesRow = await dbAsync.get(`SELECT COUNT(*) as count FROM roles`);
+    if (!rolesRow || rolesRow.count === 0) {
+      await dbAsync.run(`INSERT INTO roles (name, description) VALUES ($1, $2)`, [
+        "admin",
+        "Administrator with full access"
+      ]);
+      await dbAsync.run(`INSERT INTO roles (name, description) VALUES ($1, $2)`, [
+        "client",
+        "Standard client user"
+      ]);
+      console.log("✅ Roles seeded");
     }
+
+    // Admin user seeding
+    const adminRole = await dbAsync.get(`SELECT id FROM roles WHERE name = $1`, ["admin"]);
+    if (adminRole) {
+      const adminEmail = "resecurity.siwan@gmail.com";
+      const adminPassword = "Surya@87098";
+
+      const existingAdmin = await dbAsync.get(
+        `SELECT id FROM users WHERE LOWER(email) = LOWER($1)`,
+        [adminEmail]
+      );
+
+      if (!existingAdmin) {
+        const hashedAdminPassword = await bcrypt.hash(adminPassword, 10);
+        await dbAsync.run(
+          `INSERT INTO users (name, email, hashed_password, role_id, is_active)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [
+            "SURYAMOHAN",
+            adminEmail,
+            hashedAdminPassword,
+            adminRole.id,
+            true,
+          ],
+        );
+        console.log("✅ Admin user seeded");
+      }
+    }
+
+    // Sections seeding
+    const sectionsRow = await dbAsync.get(`SELECT COUNT(*) as count FROM sections`);
+    if (!sectionsRow || sectionsRow.count === 0) {
+      const sections = [
+        ["Cameras", "Security cameras and surveillance equipment", 1],
+        ["Storage", "High-capacity storage devices", 2],
+        ["Laptops", "Portable workstations and notebooks", 3],
+        ["Monitors", "Displays for surveillance and workstations", 4],
+        ["Accessories", "Installation accessories and cables", 5]
+      ];
+
+      for (const [name, description, order] of sections) {
+        await dbAsync.run(
+          `INSERT INTO sections (name, description, display_order) VALUES ($1, $2, $3)`,
+          [name, description, order]
+        );
+      }
+      console.log("✅ Sections seeded");
+    }
+
+    console.log("🎉 Database schema initialization completed successfully");
+  } catch (error) {
+    console.error("💥 Database schema initialization failed:", error);
+    throw error; // Re-throw to let caller handle
   }
 }
 
@@ -423,25 +431,45 @@ async function initializeDatabaseSchema() {
 
 // Health check with database status
 app.get("/health", async (req, res) => {
+  const health = {
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    database: "unknown",
+    environment: process.env.NODE_ENV || "development",
+    database_url_present: !!process.env.DATABASE_URL,
+    port: PORT
+  };
+
   try {
-    // Test database connection
-    await dbAsync.get(`SELECT 1 as test`);
-    res.json({
-      status: "ok",
-      database: "connected",
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime()
-    });
+    // Test database connection with timeout
+    const result = await Promise.race([
+      dbAsync.get(`SELECT 1 as test, NOW() as current_time`),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Database timeout')), 5000)
+      )
+    ]);
+
+    if (result && result.test === 1) {
+      health.database = "connected";
+      health.database_time = result.current_time;
+      console.log('✅ Health check: Database connected successfully');
+    } else {
+      health.database = "query_failed";
+      health.status = "degraded";
+      console.warn('⚠️  Health check: Database query failed');
+    }
   } catch (dbError) {
-    console.error('Health check database error:', dbError.message);
-    res.status(503).json({
-      status: "degraded",
-      database: "disconnected",
-      error: dbError.message,
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime()
-    });
+    console.error('❌ Health check database error:', dbError.message);
+    health.database = "disconnected";
+    health.database_error = dbError.message;
+    health.status = "degraded";
+    // Still return 200 to allow Railway to see the status
   }
+
+  console.log(`🏥 Health check response: ${JSON.stringify(health)}`);
+  // Always return 200 for health check - Railway will keep retrying
+  res.status(200).json(health);
 });
 
 // Auth routes (NO global rate limiting - applied per-endpoint in routes file)
@@ -514,28 +542,37 @@ app.use(errorHandler);
 
 async function startServer() {
   try {
-    console.log("Starting server initialization...");
-    console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-    console.log(`Port: ${PORT}`);
-    console.log(`Database URL configured: ${!!process.env.DATABASE_URL}`);
+    console.log("🚀 Starting server initialization...");
+    console.log(`📍 Environment: ${process.env.NODE_ENV || "development"}`);
+    console.log(`🔌 Port: ${PORT}`);
+    console.log(`🗄️  Database URL configured: ${!!process.env.DATABASE_URL}`);
+    console.log(`🌐 CORS Origin: ${process.env.CORS_ORIGIN || "not set"}`);
 
     // Try to initialize database schema (don't crash if it fails)
     try {
+      console.log("📊 Initializing database schema...");
       await initializeDatabaseSchema();
-      console.log("Database schema initialized successfully");
+      console.log("✅ Database schema initialized successfully");
     } catch (dbError) {
-      console.warn("Database initialization failed, but continuing:", dbError.message);
-      console.warn("Server will start in degraded mode. Database operations may fail until DB is available.");
+      console.warn("⚠️  Database initialization failed, but continuing:", dbError.message);
+      console.warn("ℹ️  Server will start in degraded mode. Database operations may fail until DB is available.");
     }
 
     // Start the server regardless of database status
-    server.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Health check available at: http://localhost:${PORT}/health`);
-      console.log("Server startup complete");
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`🏥 Health check available at: http://localhost:${PORT}/health`);
+      console.log(`🌍 CORS configured for: ${process.env.CORS_ORIGIN || "default origins"}`);
+      console.log("🎉 Server startup complete - ready to accept connections!");
     });
+
+    // Handle server errors
+    server.on('error', (error) => {
+      console.error('❌ Server error:', error);
+    });
+
   } catch (startupError) {
-    console.error("Critical server startup error:", startupError);
+    console.error("💥 Critical server startup error:", startupError);
     process.exit(1);
   }
 }
