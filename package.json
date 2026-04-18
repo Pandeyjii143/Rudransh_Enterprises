@@ -2,13 +2,10 @@
   "name": "rudransh-enterprises",
   "version": "1.0.0",
   "description": "Full-stack e-commerce application",
-  "main": "backend/server-new.js",
-  "scripts": {
-    "start": "cd backend && npm start",
-    "build": "cd backend && npm run build",
-    "dev": "cd backend && npm run dev"
-  },
   "engines": {
     "node": "18.x"
+  },
+  "scripts": {
+    "build": "echo 'Build complete'"
   }
 }
