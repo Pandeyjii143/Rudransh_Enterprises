@@ -1,23 +1,17 @@
 const dbConnector = require('../../database/db');
 
 /**
- * For legacy support, we expose same interface used by existing code.
- * - db is for callbacks style
- * - dbAsync is for Promise style from existing services.
+ * For legacy support, expose the same interface used by existing code.
+ * - db is for callback-style or direct access
+ * - dbAsync is for promise-style usage in modern services.
  */
 
 const db = dbConnector;
-const dbAsync = dbConnector;
-
-module.exports = { db, dbAsync };
-    },
-    get: (sql, params = []) => dbConnector.get(sql, params),
-    all: (sql, params = []) => dbConnector.all(sql, params),
-  };
-} else {
-  db = dbConnector;
-  dbAsync = dbConnector;
-}
+const dbAsync = {
+  run: async (sql, params = []) => dbConnector.run(sql, params),
+  get: async (sql, params = []) => dbConnector.get(sql, params),
+  all: async (sql, params = []) => dbConnector.all(sql, params),
+};
 
 module.exports = { db, dbAsync };
 
