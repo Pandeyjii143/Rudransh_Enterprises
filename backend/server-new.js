@@ -425,18 +425,21 @@ async function initializeDatabaseSchema() {
 app.get("/health", async (req, res) => {
   try {
     // Test database connection
-    await dbAsync.get(`SELECT 1`);
+    await dbAsync.get(`SELECT 1 as test`);
     res.json({
       status: "ok",
       database: "connected",
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
     });
   } catch (dbError) {
+    console.error('Health check database error:', dbError.message);
     res.status(503).json({
       status: "degraded",
       database: "disconnected",
       error: dbError.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
     });
   }
 });
@@ -512,6 +515,9 @@ app.use(errorHandler);
 async function startServer() {
   try {
     console.log("Starting server initialization...");
+    console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+    console.log(`Port: ${PORT}`);
+    console.log(`Database URL configured: ${!!process.env.DATABASE_URL}`);
 
     // Try to initialize database schema (don't crash if it fails)
     try {
@@ -525,8 +531,8 @@ async function startServer() {
     // Start the server regardless of database status
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
       console.log(`Health check available at: http://localhost:${PORT}/health`);
+      console.log("Server startup complete");
     });
   } catch (startupError) {
     console.error("Critical server startup error:", startupError);

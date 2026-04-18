@@ -17,5 +17,6 @@ NODE_ENV = "production"
 [deploy.env]
 NODE_ENV = "production"
 PORT = "8080"
+PGSSLMODE = "require"
 
 # Railway automatically provides DATABASE_URL for PostgreSQL
