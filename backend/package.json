@@ -8,8 +8,7 @@
     "dev": "nodemon server-new.js",
     "build": "echo 'No build step required for backend'",
     "migrate": "node ../database/migrations/runMigrations.js",
-    "seed": "node ../database/migrations/runSeed.js",
-    "postinstall": "npm run migrate && npm run seed"
+    "seed": "node ../database/migrations/runSeed.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
